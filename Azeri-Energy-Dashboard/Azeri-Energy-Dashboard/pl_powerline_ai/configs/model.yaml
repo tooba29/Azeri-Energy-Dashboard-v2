@@ -1,0 +1,18 @@
+# API Configuration
+
+api_key: "rav5WWiTWtDKZN7qmMFu"
+api_url: "https://serverless.roboflow.com"
+model_id: "yeni-wbzkp/my-first-project-glnqx/1"
+
+# Class mapping: Map class names to your unified class names
+# Update this based on what classes your model returns
+class_mapping:
+  # Example - adjust these based on your actual model classes:
+  # "glass_insulator": "glass_insulator"
+  # "polymer_insulator": "polymer_insulator"
+  # "yoke": "yoke_suspension"
+  # "clamp": "clamp"
+  # Add all your class mappings here
+
+# Confidence threshold
+confidence_threshold: 0.30
