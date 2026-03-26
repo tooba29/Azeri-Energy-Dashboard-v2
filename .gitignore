@@ -52,3 +52,17 @@ tl_defect_cn1/weights/
 
 # Detection results (generated at runtime)
 **/detection_server/results/
+
+# Project-specific backend artifacts
+backend/results/
+backend/venv/
+backend/.venv/
+backend/env/
+
+# Project-specific frontend dependencies
+frontend/node_modules/
+
+.env
+.env.local
+.env.*.local
+!.env.example

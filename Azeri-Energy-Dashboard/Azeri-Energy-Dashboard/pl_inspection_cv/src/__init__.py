@@ -1,1 +1,0 @@
-"""Powerline Inspection CV System."""
