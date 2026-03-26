@@ -1,0 +1,16 @@
+# Defect classes for Stage B (Classification)
+# Format: class_id: class_name
+classes:
+  0: normal
+  1: rust
+  2: broken
+  3: missing_part
+  4: pollution_flashover
+
+# Class names list (for YOLO classification)
+names:
+  - normal
+  - rust
+  - broken
+  - missing_part
+  - pollution_flashover

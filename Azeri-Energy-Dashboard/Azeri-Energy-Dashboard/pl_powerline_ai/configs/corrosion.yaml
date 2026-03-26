@@ -1,0 +1,28 @@
+# Corrosion Detection Model Configuration
+# Exact model URL: https://universe.roboflow.com/psm-lzkq8/corrosion-rsbnq/model/1
+
+api_key: "rav5WWiTWtDKZN7qmMFu"
+api_url: "https://serverless.roboflow.com"
+model_id: "psm-lzkq8/corrosion-rsbnq/1"  # Workspace: psm-lzkq8, Project: corrosion-rsbnq, Version: 1
+
+# Class mapping: Map class names to your unified class names
+# Update this based on what classes your corrosion model returns
+class_mapping:
+  # Example - adjust these based on your actual corrosion model classes:
+  # "corrosion": "corrosion"
+  # "rust": "rust"
+  # "damage": "damage"
+  # Add all your class mappings here
+
+# Confidence threshold (lowered to capture all detections including 9.8%)
+confidence_threshold: 0.12
+
+# Filter corrosion to only detect on specific component parts
+# Set to empty list [] to disable filtering (detect corrosion anywhere)
+# Set to null to use default list: yoke_suspension, clamp, vari_grip, lightning_rod_suspension, bolt, rod, etc.
+allowed_component_types: []  # Empty list = no filtering, detect corrosion anywhere (original behavior)
+
+# Minimum IoU (Intersection over Union) required between corrosion and component bounding boxes
+# Value between 0.0 and 1.0. 0.1 means 10% overlap is required.
+# Not used when allowed_component_types is empty []
+min_iou_threshold: 0.1

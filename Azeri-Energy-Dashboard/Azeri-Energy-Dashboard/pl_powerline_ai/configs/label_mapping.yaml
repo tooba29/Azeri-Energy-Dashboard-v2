@@ -1,0 +1,50 @@
+# Label Mapping Configuration
+# Maps dataset-specific labels to unified component classes
+# 
+# Format:
+#   mappings:
+#     <dataset_name>:
+#       "<dataset_label>": "<unified_label>"  # or null to ignore
+#
+# If a label is not mapped, it will be ignored (skipped) during conversion.
+# Use null to explicitly ignore a label.
+
+mappings:
+  insplad_det:
+    "glass_insulator": "glass_insulator"
+    "polymer_insulator": "polymer_insulator"
+    "yoke": "yoke_suspension"
+    "yoke_suspension": "yoke_suspension"
+    "clamp": "clamp"
+    "vari_grip": "vari_grip"
+    "vari_grip_suspension": "vari_grip"
+    "lightning_rod": "lightning_rod_suspension"
+    "lightning_rod_suspension": "lightning_rod_suspension"
+    # Ignore unknown labels
+    "unknown": null
+    "background": null
+  
+  plad:
+    "glass_insulator": "glass_insulator"
+    "polymer_insulator": "polymer_insulator"
+    "yoke": "yoke_suspension"
+    "clamp": "clamp"
+    "vari_grip": "vari_grip"
+    "lightning_rod": "lightning_rod_suspension"
+    # Add more mappings as needed
+    "other": null
+  
+  cplid:
+    "glass_insulator": "glass_insulator"
+    "polymer_insulator": "polymer_insulator"
+    "yoke": "yoke_suspension"
+    "clamp": "clamp"
+    "vari_grip": "vari_grip"
+    "lightning_rod": "lightning_rod_suspension"
+    # Add more mappings as needed
+    "unknown": null
+  
+  # Add mappings for other datasets as needed
+  # ttpla:
+  #   "label1": "glass_insulator"
+  #   "label2": "polymer_insulator"
