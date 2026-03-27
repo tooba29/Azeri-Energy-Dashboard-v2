@@ -19,12 +19,9 @@ dist-ssr/
 outputs/
 
 # Environment and secrets
-.env
-.env.local
 .env.*.local
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -63,7 +60,6 @@ backend/env/
 # Project-specific frontend dependencies
 frontend/node_modules/
 
-.env
-.env.local
 .env.*.local
 !.env.example
+config.bat

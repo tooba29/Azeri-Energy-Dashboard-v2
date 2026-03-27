@@ -148,7 +148,7 @@ export default function Runs() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Scan Uploads</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Recent Uploads</h1>
           <p className="text-neutral-400">All uploaded images and videos with detection results</p>
         </div>
         <button onClick={() => { setLoading(true); fetchRuns(); }}
