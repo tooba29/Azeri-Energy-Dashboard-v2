@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { toast } from "../components/Toast";
+import { motion, useReducedMotion } from "framer-motion";
+import { getRecentVideos, videoFrameUrl, type VideoResult } from "../../api/api";
+import { toast } from "../Toast";
+import MediaUploadBox from "../Common/upload";
 import {
   Video,
   X,
@@ -11,11 +13,15 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
-  ArrowLeft,
   Trash2,
   Layers,
   Play,
   Upload,
+  AlertTriangle,
+  Calendar,
+  BarChart3,
+  Eye,
+  Film,
 } from "lucide-react";
 import { io, type Socket } from "socket.io-client";
 
@@ -49,7 +55,11 @@ type LocalVideo = {
 let _vid = 0;
 const uid = () => `v_${++_vid}_${Date.now()}`;
 
-export default function VideoUpload() {
+export default function VideoAnalysis() {
+  const reduceMotion = useReducedMotion();
+  const pageTransition = reduceMotion ? { duration: 0 } : { duration: 0.2 };
+  const uploadSectionRef = useRef<HTMLDivElement>(null);
+
   const [localVideos, setLocalVideos] = useState<LocalVideo[]>([]);
   const [cards, setCards] = useState<Map<string, VideoCard>>(new Map());
   const [jobId, setJobId] = useState<string | null>(null);
@@ -58,6 +68,11 @@ export default function VideoUpload() {
   const [config, setConfig] = useState({ confidence: 0.25, sliceSize: 640, overlap: 0.2, frameInterval: 1 });
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  const [videos, setVideos] = useState<VideoResult[]>([]);
+  const [videosLoading, setVideosLoading] = useState(true);
+  const [videosError, setVideosError] = useState<string | null>(null);
+  const [expandedVideos, setExpandedVideos] = useState<Set<string>>(new Set());
 
   const socketRef = useRef<Socket | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -74,6 +89,44 @@ export default function VideoUpload() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    setVideosLoading(true);
+    setVideosError(null);
+    getRecentVideos(50)
+      .then(setVideos)
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : "Failed to load videos";
+        setVideosError(msg);
+        toast.error(msg, 5000);
+      })
+      .finally(() => setVideosLoading(false));
+  }, []);
+
+  const toggleVideo = (videoId: string) => {
+    setExpandedVideos((prev) => {
+      const next = new Set(prev);
+      if (next.has(videoId)) next.delete(videoId);
+      else next.add(videoId);
+      return next;
+    });
+  };
+
+  const formatVideoDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const scrollToUpload = () => uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const updateCard = useCallback((key: string, patch: Partial<VideoCard>) => {
     setCards(prev => {
@@ -269,6 +322,7 @@ export default function VideoUpload() {
       setProcessing(false);
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       toast.success(`All videos processed! ${d.total_detections} defects found.`, 5000);
+      getRecentVideos(50).then(setVideos).catch(() => {});
     });
   }, [syncFromApi, updateCard]);
 
@@ -377,9 +431,6 @@ export default function VideoUpload() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <Link to="/dashboard" className="text-neutral-400 hover:text-white transition-colors">
-                <ArrowLeft size={20} />
-              </Link>
               <Video className="text-premium-accent text-xl" />
               <div className="text-sm text-premium-accent uppercase tracking-wider">Video Analysis</div>
             </div>
@@ -410,61 +461,67 @@ export default function VideoUpload() {
 
       {/* Upload + Config */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass rounded-2xl border border-neutral-800 p-6 shadow-premium">
+        <div ref={uploadSectionRef} className="glass rounded-2xl border border-neutral-800 p-6 shadow-premium">
           <div className="flex items-center gap-2 mb-6">
             <Upload className="text-premium-accent text-xl" />
             <div className="font-semibold text-white text-lg">Video Upload</div>
           </div>
 
-          <div
-            onDragEnter={handleDrag} onDragLeave={handleDrag}
-            onDragOver={handleDrag} onDrop={handleDrop}
-            className={`rounded-xl border-2 border-dashed transition-all p-4 ${
-              dragActive ? "border-premium-accent bg-premium-accent/10"
-              : localVideos.length > 0 ? "border-premium-success/50 bg-premium-success/5"
-              : "border-neutral-700 bg-premium-card/30 hover:border-premium-accent/50"
-            }`}
+          <MediaUploadBox
+            accent="purple"
+            dragActive={dragActive}
+            disabled={processing}
+            hasFiles={localVideos.length > 0}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            inputId="vid-upload"
+            accept="video/*"
+            multiple
+            onInputChange={(e) => {
+              if (e.target.files?.length) addVideos(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+            addMoreInputId="vid-add-more"
+            onAddMoreChange={(e) => {
+              if (e.target.files?.length) addVideos(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+            emptyIcon={<Video className="text-3xl text-neutral-500" />}
+            emptyDescription="Drop video files here or click to browse"
+            primaryButtonLabel="Select Videos"
+            hint="Supports MP4, AVI, MOV — multiple files allowed"
           >
-            {localVideos.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-premium-success">
-                  <CheckCircle2 size={16} />
-                  <span>{localVideos.length} video(s) selected</span>
+            <div className="flex items-center gap-2 text-sm text-premium-success">
+              <CheckCircle2 size={16} />
+              <span>{localVideos.length} video(s) selected</span>
+            </div>
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              {localVideos.map((lv) => (
+                <div
+                  key={lv.id}
+                  className="relative group rounded-lg border border-neutral-700 bg-neutral-800 overflow-hidden"
+                  style={{ width: 120 }}
+                >
+                  <video src={lv.preview} muted className="w-full h-16 object-cover" />
+                  <div className="p-1">
+                    <p className="text-[9px] text-white truncate">{lv.file.name}</p>
+                    <p className="text-[8px] text-neutral-400">{(lv.file.size / 1024 / 1024).toFixed(1)} MB</p>
+                  </div>
+                  {!processing && (
+                    <button
+                      type="button"
+                      onClick={() => removeVideo(lv.id)}
+                      className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={10} className="text-white" />
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                  {localVideos.map(lv => (
-                    <div key={lv.id} className="relative group rounded-lg border border-neutral-700 bg-neutral-800 overflow-hidden" style={{ width: 120 }}>
-                      <video src={lv.preview} muted className="w-full h-16 object-cover" />
-                      <div className="p-1">
-                        <p className="text-[9px] text-white truncate">{lv.file.name}</p>
-                        <p className="text-[8px] text-neutral-400">{(lv.file.size / 1024 / 1024).toFixed(1)} MB</p>
-                      </div>
-                      {!processing && (
-                        <button onClick={() => removeVideo(lv.id)}
-                          className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <X size={10} className="text-white" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <input type="file" accept="video/*" multiple onChange={e => { if (e.target.files?.length) addVideos(Array.from(e.target.files)); e.target.value = ""; }} className="hidden" id="vid-add-more" />
-                <label htmlFor="vid-add-more" className="inline-block rounded-lg bg-premium-card border border-neutral-700 text-white px-3 py-1.5 text-xs font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                  + Add More
-                </label>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <Video className="text-3xl text-neutral-500 mx-auto mb-3" />
-                <div className="text-sm text-neutral-300 mb-2">Drop video files here or click to browse</div>
-                <input type="file" accept="video/*" multiple onChange={e => { if (e.target.files?.length) addVideos(Array.from(e.target.files)); e.target.value = ""; }} className="hidden" id="vid-upload" />
-                <label htmlFor="vid-upload" className="inline-block rounded-xl bg-premium-card border border-neutral-700 text-white px-4 py-2 text-sm font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                  Select Videos
-                </label>
-                <div className="text-xs text-neutral-500 mt-2">Supports MP4, AVI, MOV — multiple files allowed</div>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          </MediaUploadBox>
         </div>
 
         {/* Config */}
@@ -733,6 +790,215 @@ export default function VideoUpload() {
           <div className="text-neutral-500 text-sm">Upload one or more videos above to start defect detection</div>
         </div>
       )}
+
+      {/* Recent scanned videos (from former Videos page) */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-white mb-1">Recent Scanned Videos</h2>
+          <p className="text-sm text-neutral-400">Processed video analysis results</p>
+        </div>
+        {videosLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="glass rounded-xl border border-neutral-800 p-6 h-48 animate-pulse" />
+            ))}
+          </div>
+        ) : videosError ? (
+          <div className="glass rounded-xl border border-premium-danger/50 bg-premium-danger/10 p-6">
+            <div className="flex items-center gap-3 text-premium-danger">
+              <AlertTriangle size={20} />
+              <span>{videosError}</span>
+            </div>
+          </div>
+        ) : videos.length === 0 ? (
+          <div className="glass rounded-xl border border-neutral-800 p-12 text-center">
+            <Film className="text-neutral-600 mx-auto mb-4" size={48} />
+            <h3 className="text-xl font-semibold text-white mb-2">No Videos Yet</h3>
+            <p className="text-neutral-400 mb-6">Upload videos above to start processing and analyzing power line inspections</p>
+            <button
+              type="button"
+              onClick={scrollToUpload}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-premium-accent hover:bg-premium-accent/90 text-white rounded-lg font-medium transition-colors"
+            >
+              <Video size={18} />
+              Upload Video
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {videos.map((video) => {
+              const isExpanded = expandedVideos.has(video.video_id);
+              const stats = video.processing_stats || {};
+              const videoInfo = video.video_info || {};
+              const defectSummary = video.defect_summary || {};
+              const frameResults = video.frame_results || [];
+
+              return (
+                <motion.div
+                  key={video.video_id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={pageTransition}
+                  className="glass rounded-xl border border-neutral-800 overflow-hidden"
+                >
+                  <div
+                    className="p-6 cursor-pointer hover:bg-neutral-800/50 transition-colors"
+                    onClick={() => toggleVideo(video.video_id)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="rounded-full bg-premium-accent/20 p-2 border border-premium-accent/30">
+                            <Film className="text-premium-accent" size={20} />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">
+                              {videoInfo.filename || `Video ${video.video_id}`}
+                            </h3>
+                            {video.tower_id && (
+                              <div className="text-sm text-neutral-400 mt-1">Tower ID: {video.tower_id}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-400 mt-3">
+                          <div className="flex items-center gap-1">
+                            <Calendar size={14} />
+                            <span>{formatVideoDate(video.created_at)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock size={14} />
+                            <span>Duration: {formatDuration(videoInfo.duration_seconds || 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Video size={14} />
+                            <span>{stats.processed_frames || 0} frames processed</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-green-400 flex items-center gap-1">
+                            <CheckCircle2 size={14} />
+                            {stats.processed_frames || 0} processed
+                          </span>
+                          {stats.failed_frames > 0 && (
+                            <span className="text-red-400 flex items-center gap-1">
+                              <XCircle size={14} />
+                              {stats.failed_frames} failed
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight
+                          className={`text-neutral-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                          size={20}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                      <div className="glass rounded-lg border border-neutral-700 p-3">
+                        <div className="text-xs text-neutral-400 mb-1">Total Detections</div>
+                        <div className="text-xl font-bold text-white">{stats.total_detections || 0}</div>
+                      </div>
+                      <div className="glass rounded-lg border border-neutral-700 p-3">
+                        <div className="text-xs text-neutral-400 mb-1">Avg Confidence</div>
+                        <div className="text-xl font-bold text-white">
+                          {((stats.average_confidence || 0) * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                      <div className="glass rounded-lg border border-neutral-700 p-3">
+                        <div className="text-xs text-neutral-400 mb-1">FPS</div>
+                        <div className="text-xl font-bold text-white">{videoInfo.fps?.toFixed(1) || "—"}</div>
+                      </div>
+                      <div className="glass rounded-lg border border-neutral-700 p-3">
+                        <div className="text-xs text-neutral-400 mb-1">Defect Types</div>
+                        <div className="text-xl font-bold text-white">{Object.keys(defectSummary).length}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="px-6 pb-6 border-t border-neutral-800 space-y-4"
+                    >
+                      {Object.keys(defectSummary).length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                            <BarChart3 size={16} />
+                            Detections by Type
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {Object.entries(defectSummary).map(([type, count]) => (
+                              <div key={type} className="glass rounded-lg border border-neutral-700 p-3">
+                                <div className="text-premium-accent font-semibold text-sm capitalize">
+                                  {String(type).replace(/_/g, " ")}
+                                </div>
+                                <div className="text-neutral-300 text-xs mt-1">
+                                  {count} detection{count !== 1 ? "s" : ""}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {frameResults.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                            <Eye size={16} />
+                            Frame Analysis ({frameResults.length} frames)
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-96 overflow-y-auto">
+                            {frameResults.map((frame) => (
+                              <div key={frame.frame_number} className="glass rounded-lg border border-neutral-700 overflow-hidden">
+                                <img
+                                  src={videoFrameUrl(
+                                    video.video_id,
+                                    `overlay_${frame.frame_number.toString().padStart(4, "0")}.jpg`
+                                  )}
+                                  alt={`Frame ${frame.frame_number}`}
+                                  className="w-full h-24 object-cover"
+                                />
+                                <div className="p-2">
+                                  <div className="text-xs text-neutral-400">{frame.timestamp?.toFixed(1)}s</div>
+                                  <div className="text-xs text-white font-medium">
+                                    {frame.detections_count} detection{frame.detections_count !== 1 ? "s" : ""}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pt-4 border-t border-neutral-800">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="text-neutral-400">Video ID</div>
+                            <div className="text-white font-mono text-xs mt-1">{video.video_id}</div>
+                          </div>
+                          <div>
+                            <div className="text-neutral-400">Frame Interval</div>
+                            <div className="text-white mt-1">1 frame every {videoInfo.frame_interval || 1} second</div>
+                          </div>
+                          <div>
+                            <div className="text-neutral-400">Status</div>
+                            <div className="text-green-400 mt-1 capitalize">{video.status}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Preview Modal — Full annotated video */}
       {previewId && previewCard && (

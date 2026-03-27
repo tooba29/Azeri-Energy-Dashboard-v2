@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { toast } from "../components/Toast";
-import { formatDetectionLabel } from "../utils/formatLabels";
+import { toast } from "../Toast";
+import { formatDetectionLabel } from "../../utils/formatLabels";
+import MediaUploadBox from "../Common/upload";
 import {
   Upload,
   Camera,
@@ -17,8 +17,8 @@ import {
   RotateCcw,
   Crosshair,
   SlidersHorizontal,
-  ArrowLeft,
   FileImage,
+  ImageIcon,
   Trash2,
   Layers,
 } from "lucide-react";
@@ -70,7 +70,7 @@ type CardData = {
 let _idCounter = 0;
 const uid = () => `f_${++_idCounter}_${Date.now()}`;
 
-export default function AIDetection() {
+export default function RgbAnalysis() {
   const [rgbFiles, setRgbFiles] = useState<LocalFile[]>([]);
   const [cards, setCards] = useState<Map<string, CardData>>(new Map());
   const [jobId, setJobId] = useState<string | null>(null);
@@ -438,11 +438,8 @@ export default function AIDetection() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <Link to="/dashboard" className="text-neutral-400 hover:text-white transition-colors">
-                <ArrowLeft size={20} />
-              </Link>
-              <Crosshair className="text-premium-accent text-xl" />
-              <div className="text-sm text-premium-accent uppercase tracking-wider">AI Detection</div>
+              <ImageIcon className="text-premium-accent w-6 h-6 shrink-0" />
+              <div className="text-sm text-premium-accent uppercase tracking-wider">RGB Analysis</div>
             </div>
             <div className="text-2xl font-bold text-white mb-2">Defect Detection Pipeline</div>
             <div className="text-sm text-neutral-300 leading-relaxed">
@@ -472,7 +469,7 @@ export default function AIDetection() {
                 </>
               ) : (
                 <>
-                  <Crosshair className="text-lg" />
+                  <ImageIcon className="text-lg" />
                   Start Detection{totalFiles > 0 ? ` (${totalFiles})` : ""}
                 </>
               )}
@@ -497,57 +494,53 @@ export default function AIDetection() {
                 </div>
                 <span className="text-xs text-premium-danger font-medium">Required</span>
               </div>
-              <div
+              <MediaUploadBox
+                accent="cyan"
+                dragActive={dragActive === "rgb"}
+                disabled={processing}
+                hasFiles={rgbFiles.length > 0}
                 onDragEnter={e => handleDrag(e, "rgb")}
                 onDragLeave={e => handleDrag(e, "rgb")}
                 onDragOver={e => handleDrag(e, "rgb")}
                 onDrop={e => handleDrop(e, "rgb")}
-                className={`rounded-xl border-2 border-dashed transition-all p-4 ${
-                  dragActive === "rgb"
-                    ? "border-premium-accent bg-premium-accent/10"
-                    : rgbFiles.length > 0
-                    ? "border-premium-success/50 bg-premium-success/5"
-                    : "border-neutral-700 bg-premium-card/30 hover:border-premium-accent/50"
-                }`}
+                inputId="rgb-upload"
+                accept="image/*"
+                multiple
+                onInputChange={e => {
+                  if (e.target.files?.length) addFiles(Array.from(e.target.files), "rgb");
+                  e.target.value = "";
+                }}
+                addMoreInputId="rgb-add-more"
+                onAddMoreChange={e => {
+                  if (e.target.files?.length) addFiles(Array.from(e.target.files), "rgb");
+                  e.target.value = "";
+                }}
+                emptyIcon={<Camera className="text-3xl text-neutral-500" />}
+                emptyDescription="Drop RGB images here or click to browse"
+                primaryButtonLabel="Select RGB Images"
+                footerNote="High-resolution RGB images from drone or camera system"
               >
-                {rgbFiles.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-premium-success">
-                      <CheckCircle2 size={16} />
-                      <span>{rgbFiles.length} RGB image(s) selected</span>
+                <div className="flex items-center gap-2 text-sm text-premium-success">
+                  <CheckCircle2 size={16} />
+                  <span>{rgbFiles.length} RGB image(s) selected</span>
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {rgbFiles.map(f => (
+                    <div key={f.id} className="relative group">
+                      <img src={f.preview} alt={f.file.name} className="w-16 h-16 object-cover rounded-lg border border-neutral-700" />
+                      {!processing && (
+                        <button
+                          type="button"
+                          onClick={() => removeFile(f.id)}
+                          className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={10} className="text-white" />
+                        </button>
+                      )}
                     </div>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                      {rgbFiles.map(f => (
-                        <div key={f.id} className="relative group">
-                          <img src={f.preview} alt={f.file.name} className="w-16 h-16 object-cover rounded-lg border border-neutral-700" />
-                          {!processing && (
-                            <button
-                              onClick={() => removeFile(f.id)}
-                              className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X size={10} className="text-white" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <input type="file" accept="image/*" multiple onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files), "rgb"); e.target.value = ""; }} className="hidden" id="rgb-add-more" />
-                    <label htmlFor="rgb-add-more" className="inline-block rounded-lg bg-premium-card border border-neutral-700 text-white px-3 py-1.5 text-xs font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                      + Add More
-                    </label>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <Camera className="text-3xl text-neutral-500 mx-auto mb-2" />
-                    <div className="text-sm text-neutral-300 mb-2">Drop RGB images here or click to browse</div>
-                    <input type="file" accept="image/*" multiple onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files), "rgb"); e.target.value = ""; }} className="hidden" id="rgb-upload" />
-                    <label htmlFor="rgb-upload" className="inline-block rounded-xl bg-premium-card border border-neutral-700 text-white px-4 py-2 text-sm font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                      Select RGB Images
-                    </label>
-                  </div>
-                )}
-              </div>
-              <div className="mt-2 text-xs text-neutral-400">High-resolution RGB images from drone or camera system</div>
+                  ))}
+                </div>
+              </MediaUploadBox>
             </div>
 
             {totalFiles > 0 && !processing && (
@@ -851,7 +844,7 @@ export default function AIDetection() {
 
       {cards.size === 0 && totalFiles === 0 && (
         <div className="glass rounded-2xl border-2 border-dashed border-neutral-700 p-12 text-center shadow-premium">
-          <Crosshair className="text-4xl text-neutral-500 mx-auto mb-4" />
+          <ImageIcon className="text-4xl text-neutral-500 mx-auto mb-4" />
           <div className="text-neutral-300 text-lg mb-2">No images uploaded yet</div>
           <div className="text-neutral-500 text-sm">Upload RGB and optional thermal images above to start defect detection</div>
         </div>

@@ -1,21 +1,16 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import Layout from "./components/Layout";
-import BulkUpload from "./pages/BulkUpload";
-import VideoUpload from "./pages/VideoUpload";
-import Videos from "./pages/Videos";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import HomeLayout from "./layouts/home";
 import Settings from "./pages/Settings";
-import AIDetection from "./pages/AIDetection";
 import LoadingSpinner from "./components/LoadingSpinner";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const AIDetection = lazy(() => import("./pages/AIDetection/AIDetection"));
 const Runs = lazy(() => import("./pages/Runs"));
 const RunDetail = lazy(() => import("./pages/RunDetail"));
 const CorridorMap = lazy(() => import("./pages/CorridorMap"));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue"));
-const ThermalAnalysis = lazy(() => import("./pages/ThermalAnalysis"));
 // Import BulkBatches directly to avoid lazy loading issues
-import BulkBatches from "./pages/BulkBatches";
 
 const LazyRoute = ({ children }: { children: React.ReactNode }) => (
   <Suspense
@@ -29,25 +24,31 @@ const LazyRoute = ({ children }: { children: React.ReactNode }) => (
   </Suspense>
 );
 
+function HomeLayoutOutlet() {
+  return (
+    <HomeLayout>
+      <Outlet />
+    </HomeLayout>
+  );
+}
+
 export default function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
+      <Route path="/ai-detection" element={<LazyRoute><AIDetection /></LazyRoute>} />
+      <Route element={<HomeLayoutOutlet />}>
         <Route path="/runs" element={<LazyRoute><Runs /></LazyRoute>} />
         <Route path="/runs/:id" element={<LazyRoute><RunDetail /></LazyRoute>} />
-        <Route path="/ai-detection" element={<AIDetection />} />
-        <Route path="/video-upload" element={<VideoUpload />} />
-        <Route path="/videos" element={<LazyRoute><Videos /></LazyRoute>} />
-        <Route path="/bulk-upload" element={<BulkUpload />} />
-        <Route path="/bulk-batches" element={<BulkBatches />} />
-        <Route path="/thermal-analysis" element={<LazyRoute><ThermalAnalysis /></LazyRoute>} />
         <Route path="/map" element={<LazyRoute><CorridorMap /></LazyRoute>} />
         <Route path="/review-queue" element={<LazyRoute><ReviewQueue /></LazyRoute>} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Layout>
+        <Route path="/thermal-analysis" element={<Navigate to="/ai-detection?tab=thermal" replace />} />
+        <Route path="/video-upload" element={<Navigate to="/ai-detection?tab=video" replace />} />
+        <Route path="/videos" element={<Navigate to="/ai-detection?tab=video" replace />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }

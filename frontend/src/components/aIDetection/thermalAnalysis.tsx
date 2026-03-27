@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { toast } from "../components/Toast";
+import { toast } from "../Toast";
+import MediaUploadBox from "../Common/upload";
 import {
-  ArrowLeft,
   Thermometer,
   Upload,
   Download,
@@ -32,7 +31,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { io, type Socket } from "socket.io-client";
-import { API_BASE } from "../api/api";
+import { API_BASE } from "../../api/api";
 
 const POLL_MS = 2000;
 
@@ -148,7 +147,7 @@ function confidenceBadge(confidence: number) {
   );
 }
 
-export default function ThermalAnalysis() {
+export default function ThermalAnalysisTab() {
   const reduceMotion = useReducedMotion();
   const transition = { duration: reduceMotion ? 0 : 0.3 };
 
@@ -538,9 +537,6 @@ export default function ThermalAnalysis() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <Link to="/dashboard" className="text-neutral-400 hover:text-white transition-colors">
-                <ArrowLeft size={20} />
-              </Link>
               <Thermometer className="text-emerald-400" size={22} />
               <div className="text-sm text-emerald-400 uppercase tracking-wider font-medium">Thermal Analysis</div>
               {sdkHealth && (
@@ -594,57 +590,58 @@ export default function ThermalAnalysis() {
             <h2 className="font-semibold text-white text-lg">Image Upload</h2>
           </div>
 
-          <div
+          <MediaUploadBox
+            accent="emerald"
+            dragActive={dragActive}
+            disabled={processing}
+            hasFiles={files.length > 0}
             onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
             onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
             onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-            onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragActive(false); if (e.dataTransfer.files?.length) addFiles(Array.from(e.dataTransfer.files)); }}
-            className={`rounded-xl border-2 border-dashed transition-all p-4 ${
-              dragActive
-                ? "border-emerald-400 bg-emerald-400/10"
-                : files.length > 0
-                ? "border-emerald-500/40 bg-emerald-500/5"
-                : "border-neutral-700 bg-premium-card/30 hover:border-emerald-400/40"
-            }`}
+            onDrop={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(false);
+              if (e.dataTransfer.files?.length) addFiles(Array.from(e.dataTransfer.files));
+            }}
+            inputId="thermal-upload"
+            accept="image/*"
+            multiple
+            onInputChange={e => {
+              if (e.target.files?.length) addFiles(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+            addMoreInputId="thermal-add-more"
+            onAddMoreChange={e => {
+              if (e.target.files?.length) addFiles(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+            emptyIcon={<Thermometer className="text-3xl text-neutral-500 mx-auto" size={36} />}
+            emptyDescription="Drop thermal images here or click to browse"
+            primaryButtonLabel="Select Thermal Images"
+            footerNote="DJI R-JPEG radiometric thermal images for temperature analysis"
           >
-            {files.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-emerald-400">
-                  <CheckCircle2 size={16} />
-                  <span>{files.length} thermal image(s) selected</span>
+            <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <CheckCircle2 size={16} />
+              <span>{files.length} thermal image(s) selected</span>
+            </div>
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              {files.map(f => (
+                <div key={f.id} className="relative group">
+                  <img src={f.preview} alt={f.file.name} className="w-16 h-16 object-cover rounded-lg border border-neutral-700" />
+                  {!processing && (
+                    <button
+                      type="button"
+                      onClick={() => removeFile(f.id)}
+                      className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={10} className="text-white" />
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                  {files.map(f => (
-                    <div key={f.id} className="relative group">
-                      <img src={f.preview} alt={f.file.name} className="w-16 h-16 object-cover rounded-lg border border-neutral-700" />
-                      {!processing && (
-                        <button
-                          onClick={() => removeFile(f.id)}
-                          className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={10} className="text-white" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <input type="file" accept="image/*" multiple onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files)); e.target.value = ""; }} className="hidden" id="thermal-add-more" />
-                <label htmlFor="thermal-add-more" className="inline-block rounded-lg bg-premium-card border border-neutral-700 text-white px-3 py-1.5 text-xs font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                  + Add More
-                </label>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <Thermometer className="text-3xl text-neutral-500 mx-auto mb-2" size={36} />
-                <div className="text-sm text-neutral-300 mb-2">Drop thermal images here or click to browse</div>
-                <input type="file" accept="image/*" multiple onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files)); e.target.value = ""; }} className="hidden" id="thermal-upload" />
-                <label htmlFor="thermal-upload" className="inline-block rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-2.5 text-sm font-semibold cursor-pointer hover:shadow-lg transition-all">
-                  Select Thermal Images
-                </label>
-              </div>
-            )}
-          </div>
-          <div className="mt-2 text-xs text-neutral-400">DJI R-JPEG radiometric thermal images for temperature analysis</div>
+              ))}
+            </div>
+          </MediaUploadBox>
 
           {totalFiles > 0 && !processing && (
             <div className="mt-3 rounded-xl bg-premium-card/50 border border-neutral-700 p-3">

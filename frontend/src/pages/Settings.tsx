@@ -5,7 +5,6 @@ import { toast } from "../components/Toast";
 import {
   Settings as SettingsIcon,
   Server,
-  Download,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -24,44 +23,6 @@ export default function Settings() {
     };
     run();
   }, []);
-
-  const exportRunsJSON = async () => {
-    try {
-      setExporting(true);
-      const runs = await getRuns();
-      const data = {
-        export_metadata: {
-          export_date: new Date().toISOString(),
-          system: "Powerline Inspection AI",
-          total_runs: runs.length,
-        },
-        runs: runs.map((r) => ({
-          id: r.id,
-          run_id: r.run_id,
-          tower_id: r.tower_id,
-          status: r.status,
-          created_at: r.created_at ?? r.timestamp,
-          findings_count: r.findings_count,
-          must_review_count: r.must_review_count,
-          avg_confidence: r.avg_confidence ?? r.ai_confidence,
-        })),
-      };
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `runs_export_${new Date().toISOString().split("T")[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Runs exported to JSON", 3000);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Export failed";
-      toast.error(msg, 5000);
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const apiBase = typeof import.meta.env.VITE_API_BASE === "string" ? import.meta.env.VITE_API_BASE : API_BASE;
 
@@ -149,28 +110,6 @@ export default function Settings() {
               Shown in run detail metadata when available. Backend supplies pipeline/model info per run.
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Export runs */}
-      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/50 p-6 backdrop-blur-sm space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <FileJson className="text-cyan-400" size={22} />
-          <h2 className="text-lg font-semibold text-white">Export data</h2>
-        </div>
-        <p className="text-sm text-neutral-400">
-          Export inspection runs list as JSON for backup or analysis.
-        </p>
-        <div className="flex gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={exportRunsJSON}
-            disabled={exporting}
-            className="inline-flex items-center gap-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white px-4 py-2 text-sm font-semibold hover:bg-neutral-700 disabled:opacity-50 transition-colors"
-          >
-            <Download size={18} />
-            {exporting ? "Exporting…" : "Export runs (JSON)"}
-          </button>
         </div>
       </div>
     </motion.div>
