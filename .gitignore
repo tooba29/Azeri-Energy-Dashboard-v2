@@ -55,6 +55,7 @@ tl_defect_cn1/weights/
 
 # Project-specific backend artifacts
 backend/results/
+backend/models/windows/
 backend/venv/
 backend/.venv/
 backend/env/

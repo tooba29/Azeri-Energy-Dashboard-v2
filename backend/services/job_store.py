@@ -10,6 +10,7 @@ import numpy as np
 
 jobs: dict[str, dict] = {}
 video_jobs: dict[str, dict] = {}
+thermal_jobs: dict[str, dict] = {}
 
 _THERMAL_KEYWORDS = ("thermal", "therm", "flir", "ir_", "_ir.", "infrared", "lwir", "mwir", "hotspot")
 
@@ -132,6 +133,80 @@ def build_run_entry(jid: str, job: dict, run_type: str) -> dict:
         "needs_review": needs_review,
         "avg_confidence": round(avg_conf, 4),
         "ai_confidence": round(avg_conf, 4),
+        "created_at": created_iso,
+        "timestamp": created_iso,
+        "_created_ts": ts,
+        "files": files_info,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Thermal job helpers
+# ---------------------------------------------------------------------------
+
+def new_thermal_job(total: int, palette: int = 2, unit: str = "Celsius",
+                    object_type: str | None = None) -> dict:
+    job_id = uuid.uuid4().hex[:12]
+    job = {
+        "job_id": job_id,
+        "total": total,
+        "palette": palette,
+        "unit": unit,
+        "object_type": object_type,
+        "files": {},
+        "results": [],
+        "completed": 0,
+        "status": "active",
+        "created_at": time.time(),
+    }
+    thermal_jobs[job_id] = job
+    return job
+
+
+def build_thermal_run_entry(jid: str, job: dict) -> dict:
+    """Build a unified run entry for a thermal batch job."""
+    n_files = len(job.get("files", {}))
+    n_completed = job.get("completed", 0)
+    results = job.get("results", [])
+
+    files_info = []
+    for fid, fdata in job.get("files", {}).items():
+        res = next((r for r in results if r.get("file_id") == fid), None)
+        files_info.append({
+            "file_id": fid,
+            "filename": fdata.get("filename", ""),
+            "source": "thermal",
+            "status": fdata.get("status", "pending"),
+            "thumb_url": res.get("thermal_image_url") if res else None,
+            "stats": res.get("stats") if res else None,
+            "analysis": res.get("analysis") if res else None,
+        })
+
+    needs_review = sum(1 for r in results if r.get("stats"))
+
+    ts = job.get("created_at", 0)
+    created_iso = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None
+
+    raw_status = job.get("status", "active")
+    if raw_status == "active" and n_files > 0 and n_completed >= n_files:
+        raw_status = "complete"
+        job["status"] = "complete"
+    status_map = {"active": "processing", "complete": "completed"}
+
+    return {
+        "id": jid, "run_id": jid,
+        "type": "thermal",
+        "status": status_map.get(raw_status, raw_status),
+        "total_files": n_files,
+        "completed": n_completed,
+        "findings_count": n_completed,
+        "total_defects": 0,
+        "rgb_findings": 0,
+        "thermal_findings": n_completed,
+        "must_review_count": needs_review,
+        "needs_review": needs_review,
+        "avg_confidence": 0,
+        "ai_confidence": 0,
         "created_at": created_iso,
         "timestamp": created_iso,
         "_created_ts": ts,

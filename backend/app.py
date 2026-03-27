@@ -27,6 +27,8 @@ from backend.websockets.socket import sio
 from backend.api.detection_routes import router as detection_router
 from backend.api.video_routes import router as video_router
 from backend.api.runs_routes import router as runs_router
+from backend.api.thermal_routes import router as thermal_router
+from backend.api.thermal_batch_routes import router as thermal_batch_router
 from backend.services.model import get_model
 
 # ---------------------------------------------------------------------------
@@ -40,6 +42,8 @@ register_error_handlers(app)
 app.include_router(detection_router)
 app.include_router(video_router)
 app.include_router(runs_router)
+app.include_router(thermal_router)
+app.include_router(thermal_batch_router)
 
 # ---------------------------------------------------------------------------
 # Socket.IO ASGI wrapper

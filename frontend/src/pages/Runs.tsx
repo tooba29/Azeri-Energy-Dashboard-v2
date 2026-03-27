@@ -11,6 +11,7 @@ import {
   ScanSearch,
   Image,
   Video,
+  Thermometer,
   X,
   ChevronLeft,
   ChevronRight,
@@ -39,7 +40,7 @@ type FileInfo = {
 
 type RunEntry = {
   run_id: string;
-  type: "image" | "video";
+  type: "image" | "video" | "thermal";
   status: string;
   total_files: number;
   completed: number;
@@ -172,6 +173,7 @@ export default function Runs() {
               <option value="all">All types</option>
               <option value="image">Images</option>
               <option value="video">Videos</option>
+              <option value="thermal">Thermal</option>
             </select>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               className="rounded-xl bg-neutral-800 border border-neutral-700 text-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/50">
@@ -252,10 +254,12 @@ export default function Runs() {
                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold border ${
                           run.type === "image"
                             ? "bg-blue-500/20 text-blue-300 border-blue-500/50"
+                            : run.type === "thermal"
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
                             : "bg-purple-500/20 text-purple-300 border-purple-500/50"
                         }`}>
-                          {run.type === "image" ? <Image size={12} /> : <Video size={12} />}
-                          {run.type === "image" ? "IMAGE" : "VIDEO"}
+                          {run.type === "image" ? <Image size={12} /> : run.type === "thermal" ? <Thermometer size={12} /> : <Video size={12} />}
+                          {run.type === "image" ? "IMAGE" : run.type === "thermal" ? "THERMAL" : "VIDEO"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -346,6 +350,9 @@ export default function Runs() {
                 {previewRun.type === "video" && previewFile.video_url ? (
                   <video key={previewFile.video_url} src={previewFile.video_url} controls autoPlay
                     className="w-full rounded-xl shadow-2xl max-h-[80vh] bg-black" />
+                ) : previewFile.thumb_url ? (
+                  <img src={previewFile.thumb_url} alt={previewFile.filename}
+                    className="w-full rounded-xl shadow-2xl max-h-[80vh] object-contain bg-black" />
                 ) : previewFile.annotated_url ? (
                   <img src={previewFile.annotated_url} alt={previewFile.filename}
                     className="w-full rounded-xl shadow-2xl max-h-[80vh] object-contain bg-black" />
@@ -366,7 +373,9 @@ export default function Runs() {
             <div className="p-4 border-b border-neutral-800">
               <div className="flex items-center gap-2 mb-2">
                 <span className={`px-2 py-0.5 rounded text-xs font-bold border ${
-                  previewRun.type === "image" ? "bg-blue-500/20 text-blue-300 border-blue-500/50" : "bg-purple-500/20 text-purple-300 border-purple-500/50"
+                  previewRun.type === "image" ? "bg-blue-500/20 text-blue-300 border-blue-500/50" :
+                  previewRun.type === "thermal" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50" :
+                  "bg-purple-500/20 text-purple-300 border-purple-500/50"
                 }`}>{previewRun.type.toUpperCase()}</span>
                 <span className={`px-2 py-0.5 rounded text-xs font-bold border ${
                   previewRun.status === "complete" ? "bg-green-500/20 text-green-300 border-green-500/50" : "bg-amber-500/20 text-amber-300 border-amber-500/50"
@@ -421,6 +430,26 @@ export default function Runs() {
                     </div>
                   </div>
                 )}
+                {previewRun.type === "thermal" && previewFile.stats && (
+                  <div className="mt-3 space-y-2 text-xs">
+                    <div className="flex justify-between text-neutral-300">
+                      <span>Min Temp</span>
+                      <span className="text-blue-400 font-semibold">{previewFile.stats.min_c?.toFixed(1)} °C</span>
+                    </div>
+                    <div className="flex justify-between text-neutral-300">
+                      <span>Max Temp</span>
+                      <span className="text-red-400 font-semibold">{previewFile.stats.max_c?.toFixed(1)} °C</span>
+                    </div>
+                    <div className="flex justify-between text-neutral-300">
+                      <span>Mean Temp</span>
+                      <span className="text-emerald-400 font-semibold">{previewFile.stats.mean_c?.toFixed(1)} °C</span>
+                    </div>
+                    <div className="flex justify-between text-neutral-300">
+                      <span>Resolution</span>
+                      <span className="text-white font-semibold">{previewFile.stats.width}×{previewFile.stats.height}</span>
+                    </div>
+                  </div>
+                )}
                 {previewRun.type === "video" && (
                   <div className="mt-3 space-y-2 text-xs">
                     <div className="flex justify-between text-neutral-300">
@@ -462,14 +491,14 @@ export default function Runs() {
                         <img src={f.thumb_url} className="w-8 h-8 rounded object-cover flex-shrink-0" alt="" />
                       ) : (
                         <div className="w-8 h-8 rounded bg-neutral-800 flex items-center justify-center flex-shrink-0">
-                          {previewRun.type === "image" ? <Image size={12} className="text-neutral-500" /> : <Video size={12} className="text-neutral-500" />}
+                          {previewRun.type === "image" ? <Image size={12} className="text-neutral-500" /> : previewRun.type === "thermal" ? <Thermometer size={12} className="text-neutral-500" /> : <Video size={12} className="text-neutral-500" />}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="text-[11px] text-white truncate">{f.filename}</div>
                         <div className="text-[10px] text-neutral-500">
                           {f.status === "done" ? (
-                            <span className="text-green-400">{previewRun.type === "image" ? `${f.stats?.total_defects || 0} defects` : `${f.total_detections || 0} detections`}</span>
+                            <span className="text-green-400">{previewRun.type === "image" ? `${f.stats?.total_defects || 0} defects` : previewRun.type === "thermal" ? `${f.stats?.min_c?.toFixed(0) ?? "?"}–${f.stats?.max_c?.toFixed(0) ?? "?"} °C` : `${f.total_detections || 0} detections`}</span>
                           ) : f.status === "processing" ? (
                             <span className="text-amber-400">Processing...</span>
                           ) : f.status === "error" ? (

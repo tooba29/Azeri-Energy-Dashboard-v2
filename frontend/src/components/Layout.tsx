@@ -16,6 +16,7 @@ import {
   Menu,
   Video,
   Crosshair,
+  Thermometer,
 } from "lucide-react";
 import { ToastContainer, useToast } from "./Toast";
 import { checkApiHealth } from "../api/api";
@@ -25,6 +26,7 @@ const navItems = [
   { to: "/runs", label: "Scan Uploads", icon: ListOrdered },
   { to: "/ai-detection", label: "AI Detection", icon: Crosshair },
   { to: "/video-upload", label: "Video Upload", icon: Video },
+  { to: "/thermal-analysis", label: "Thermal Analysis", icon: Thermometer },
   { to: "/map", label: "Corridor Map", icon: Map },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardList },
   { to: "/settings", label: "Settings", icon: Settings },

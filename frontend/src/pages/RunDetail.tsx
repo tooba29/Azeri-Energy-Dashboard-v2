@@ -9,6 +9,7 @@ import {
   overlaysZipUrl,
   type RunDetail,
   type OverlayItem,
+  API_BASE,
 } from "../api/api";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "../components/Toast";
@@ -32,6 +33,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
+  Thermometer,
+  Camera,
+  Wind,
+  BarChart3,
+  Gauge,
+  Eye,
+  Crosshair,
 } from "lucide-react";
 
 // Severity/tag from overlay: use backend-provided tag/severity when present, else parse filename.
@@ -115,6 +123,7 @@ export default function RunDetail() {
   const handleReviewAction = (idx: number, action: "confirmed" | "false_positive" | "needs_review") => {
     setReviewActions((prev) => ({ ...prev, [idx]: action }));
   };
+  const [thermalPreviewIdx, setThermalPreviewIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<"overlay" | "annotated" | "thermal">("overlay");
@@ -325,6 +334,8 @@ export default function RunDetail() {
   }
 
   const runId = run.run_id || run.id;
+  const isThermalRun = (run as any).type === "thermal";
+  const thermalFiles: any[] = isThermalRun ? ((run as any).files || []) : [];
 
   // Legacy-safe: backend may use detections, findings, or results; normalise once
   const runAny = run as Record<string, unknown>;
@@ -537,6 +548,225 @@ export default function RunDetail() {
           </div>
         </div>
       </div>
+
+      {/* Thermal Run Detail */}
+      {isThermalRun && thermalFiles.length > 0 && (() => {
+        const tf = thermalFiles[thermalPreviewIdx];
+        const tStats = tf?.stats;
+        const tAnalysis = tf?.analysis;
+        const tMeta = tAnalysis?.metadata_extracted;
+        const thumbSrc = tf?.thumb_url ? `${API_BASE}${tf.thumb_url}` : null;
+        return (
+          <>
+            {/* Thermal image grid */}
+            <div className="glass rounded-2xl border border-neutral-800 p-6 shadow-premium">
+              <div className="flex items-center gap-2 mb-4">
+                <Thermometer className="text-emerald-400" size={22} />
+                <h2 className="text-xl font-semibold text-white">Thermal Images ({thermalFiles.length})</h2>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {thermalFiles.map((f: any, idx: number) => (
+                  <button
+                    key={f.file_id}
+                    onClick={() => setThermalPreviewIdx(idx)}
+                    className={`rounded-xl border overflow-hidden transition-all group text-left ${
+                      idx === thermalPreviewIdx
+                        ? "border-emerald-500 ring-2 ring-emerald-500/50"
+                        : "border-neutral-700 hover:border-emerald-400/50"
+                    }`}
+                  >
+                    <div className="relative aspect-square bg-neutral-800 overflow-hidden">
+                      {f.thumb_url ? (
+                        <img src={`${API_BASE}${f.thumb_url}`} alt={f.filename} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ImageIcon className="text-neutral-600" size={28} />
+                        </div>
+                      )}
+                      <div className="absolute top-1 left-1">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/80 text-white">THERMAL</span>
+                      </div>
+                      {f.status === "done" && (
+                        <div className="absolute bottom-1 right-1"><CheckCircle2 className="text-emerald-400 drop-shadow-lg" size={14} /></div>
+                      )}
+                    </div>
+                    <div className="p-1.5">
+                      <p className="text-[10px] truncate font-medium text-white" title={f.filename}>{f.filename}</p>
+                      {f.stats && (
+                        <p className="text-[9px] text-neutral-400">{f.stats.min_c?.toFixed(1)}–{f.stats.max_c?.toFixed(1)} °C</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Selected file detail */}
+            {tf && (
+              <div className="glass rounded-2xl border border-neutral-800 p-6 shadow-premium space-y-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <Eye className="text-emerald-400" size={20} />
+                  <div>
+                    <h3 className="text-lg font-bold text-white">{tf.filename}</h3>
+                    <p className="text-xs text-neutral-400">Thermal Analysis Detail • File {thermalPreviewIdx + 1} of {thermalFiles.length}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  {thumbSrc && (
+                    <div className="lg:col-span-2 rounded-xl overflow-hidden border border-neutral-700 bg-black">
+                      <img src={thumbSrc} alt="Thermal Visualization" className="w-full h-auto" />
+                    </div>
+                  )}
+                  {tStats && (
+                    <div className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <BarChart3 className="text-emerald-400" size={16} />
+                        <h4 className="font-semibold text-white text-sm">Temperature Stats</h4>
+                      </div>
+                      <div className="space-y-2.5">
+                        <TStatRow label="Minimum" value={`${tStats.min_c != null ? tStats.min_c.toFixed(2) : "—"} °C`} color="text-blue-400" />
+                        <TStatRow label="Maximum" value={`${tStats.max_c != null ? tStats.max_c.toFixed(2) : "—"} °C`} color="text-red-400" />
+                        <TStatRow label="Mean" value={`${tStats.mean_c != null ? tStats.mean_c.toFixed(2) : "—"} °C`} color="text-emerald-400" />
+                        <TStatRow label="Median" value={`${tStats.median_c != null ? tStats.median_c.toFixed(2) : "—"} °C`} color="text-yellow-400" />
+                        <TStatRow label="Std Dev" value={`${tStats.std_c != null ? tStats.std_c.toFixed(2) : "—"} °C`} color="text-purple-400" />
+                        <div className="border-t border-neutral-700 my-2" />
+                        <TStatRow label="Resolution" value={`${tStats.width ?? "—"} × ${tStats.height ?? "—"}`} color="text-neutral-300" />
+                        <TStatRow label="Temp Range" value={`${tStats.max_c != null && tStats.min_c != null ? (tStats.max_c - tStats.min_c).toFixed(2) : "—"} °C`} color="text-emerald-300" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {tAnalysis && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Camera & Location */}
+                    <div className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Camera className="text-emerald-400" size={16} />
+                        <h4 className="font-semibold text-white text-sm">Camera & Location</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                        <TDetailRow label="Camera" value={tMeta?.camera_model} />
+                        <TDetailRow label="Serial" value={tMeta?.serial_number} />
+                        <TDetailRow label="Focal Length" value={tMeta?.focal_length_mm ? `${tMeta.focal_length_mm} mm` : null} />
+                        <TDetailRow label="F-Number" value={tMeta?.f_number ? `f/${tMeta.f_number}` : null} />
+                        <TDetailRow label="Timestamp" value={tMeta?.timestamp} />
+                        <TDetailRow label="Tilt" value={tMeta?.camera_tilt_deg != null ? `${tMeta.camera_tilt_deg.toFixed(1)}°` : null} />
+                        <TDetailRow label="Latitude" value={tMeta?.gps_coordinates?.latitude != null ? tMeta.gps_coordinates.latitude.toFixed(6) : null} />
+                        <TDetailRow label="Longitude" value={tMeta?.gps_coordinates?.longitude != null ? tMeta.gps_coordinates.longitude.toFixed(6) : null} />
+                        <TDetailRow label="Altitude" value={tMeta?.altitude_m != null ? `${tMeta.altitude_m.toFixed(1)} m` : null} />
+                        <TDetailRow label="Resolution" value={tMeta?.image_width && tMeta?.image_height ? `${tMeta.image_width}×${tMeta.image_height}` : null} />
+                      </div>
+                    </div>
+
+                    {/* Distance & Environment */}
+                    <div className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Wind className="text-emerald-400" size={16} />
+                        <h4 className="font-semibold text-white text-sm">Distance & Environment</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {tAnalysis.distance_meters?.value != null && (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs text-neutral-400">Distance</span>
+                              <div className="text-lg font-bold text-white">{tAnalysis.distance_meters.value.toFixed(1)} m</div>
+                              <p className="text-[10px] text-neutral-500">{tAnalysis.distance_meters.method?.replace(/_/g, " ") ?? ""}</p>
+                            </div>
+                            <TConfBadge confidence={tAnalysis.distance_meters.confidence} />
+                          </div>
+                        )}
+                        <div className="border-t border-neutral-700" />
+                        <div className="grid grid-cols-2 gap-3">
+                          {tAnalysis.environment?.ambient_temperature_c?.value != null && (
+                            <div>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs text-neutral-400">Ambient Temp</span>
+                                <TConfBadge confidence={tAnalysis.environment.ambient_temperature_c.confidence} />
+                              </div>
+                              <span className="text-base font-bold text-white">{tAnalysis.environment.ambient_temperature_c.value}°C</span>
+                            </div>
+                          )}
+                          {tAnalysis.environment?.humidity_percent?.value != null && (
+                            <div>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs text-neutral-400">Humidity</span>
+                                <TConfBadge confidence={tAnalysis.environment.humidity_percent.confidence} />
+                              </div>
+                              <span className="text-base font-bold text-white">{tAnalysis.environment.humidity_percent.value}%</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Thermal Parameters */}
+                    {tAnalysis.thermal_parameters && (
+                      <div className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Gauge className="text-emerald-400" size={16} />
+                          <h4 className="font-semibold text-white text-sm">Thermal Parameters</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          {tAnalysis.thermal_parameters.emissivity && (
+                            <div>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs text-neutral-400">Emissivity</span>
+                                <TConfBadge confidence={tAnalysis.thermal_parameters.emissivity.confidence} />
+                              </div>
+                              <span className="text-lg font-bold text-white">{tAnalysis.thermal_parameters.emissivity.value != null ? tAnalysis.thermal_parameters.emissivity.value.toFixed(3) : "—"}</span>
+                              <p className="text-[10px] text-neutral-500">{tAnalysis.thermal_parameters.emissivity.source ?? ""}</p>
+                            </div>
+                          )}
+                          {tAnalysis.thermal_parameters.reflected_temperature_c && (
+                            <div>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs text-neutral-400">Reflected Temp</span>
+                                <TConfBadge confidence={tAnalysis.thermal_parameters.reflected_temperature_c.confidence} />
+                              </div>
+                              <span className="text-lg font-bold text-white">{tAnalysis.thermal_parameters.reflected_temperature_c.value != null ? `${tAnalysis.thermal_parameters.reflected_temperature_c.value.toFixed(1)}°C` : "—"}</span>
+                              <p className="text-[10px] text-neutral-500">{tAnalysis.thermal_parameters.reflected_temperature_c.source ?? ""}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Correction Insights */}
+                    {tAnalysis.thermal_correction_insights && (
+                      <div className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <FileText className="text-emerald-400" size={16} />
+                          <h4 className="font-semibold text-white text-sm">Correction Insights</h4>
+                        </div>
+                        <div className="space-y-2">
+                          {tAnalysis.thermal_correction_insights.split("\n").map((line: string, i: number) => {
+                            const isWarning = line.toLowerCase().includes("critical") || line.toLowerCase().includes("high");
+                            const isGood = line.toLowerCase().includes("good") || line.toLowerCase().includes("low") || line.toLowerCase().includes("near-blackbody");
+                            return (
+                              <div key={i} className={`flex items-start gap-2.5 rounded-lg px-3 py-2 text-xs ${
+                                isWarning ? "bg-red-500/10 border border-red-500/20" :
+                                isGood ? "bg-emerald-500/10 border border-emerald-500/20" :
+                                "bg-neutral-800/50 border border-neutral-700/50"
+                              }`}>
+                                <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${
+                                  isWarning ? "bg-red-400" : isGood ? "bg-emerald-400" : "bg-neutral-500"
+                                }`} />
+                                <span className="text-neutral-200 leading-relaxed">{line}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Overlays Gallery – uses artifact URLs from backend (overlay_url, report_url, etc.) */}
       {(artifacts.overlay_url || artifacts.overlay_path || artifacts.annotated_url || artifacts.annotated_image || artifacts.thermal_url || artifacts.thermal_overlay) && (
@@ -988,7 +1218,7 @@ export default function RunDetail() {
                 <div className="text-neutral-400 mb-1">Location</div>
                 <div className="text-white flex items-center gap-2">
                   <MapPin className="text-lg" />
-                  {run.metadata.gps.lat.toFixed(6)}, {run.metadata.gps.lng.toFixed(6)}
+                  {run.metadata.gps.lat != null ? run.metadata.gps.lat.toFixed(6) : "—"}, {run.metadata.gps.lng != null ? run.metadata.gps.lng.toFixed(6) : "—"}
                 </div>
               </div>
             )}
@@ -1010,5 +1240,37 @@ export default function RunDetail() {
         </div>
       )}
     </div>
+  );
+}
+
+function TStatRow({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-neutral-400">{label}</span>
+      <span className={`text-sm font-mono font-semibold ${color}`}>{value}</span>
+    </div>
+  );
+}
+
+function TDetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex items-start justify-between py-0.5 gap-1">
+      <span className="text-[11px] text-neutral-500 shrink-0">{label}</span>
+      <span className="text-[11px] text-white font-medium text-right truncate">{value ?? <span className="text-neutral-600 italic">N/A</span>}</span>
+    </div>
+  );
+}
+
+function TConfBadge({ confidence }: { confidence?: number }) {
+  if (confidence == null) return null;
+  const pct = Math.round(confidence * 100);
+  const color =
+    confidence >= 0.8 ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" :
+    confidence >= 0.5 ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/30" :
+    "text-red-400 bg-red-500/10 border-red-500/30";
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${color}`}>
+      {pct}%
+    </span>
   );
 }

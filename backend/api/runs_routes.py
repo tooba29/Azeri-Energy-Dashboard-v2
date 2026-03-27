@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 
 from backend.Controllers.runs_controller import (
     get_all_runs,
+    get_run_detail,
     get_summary,
     bulk_latest,
     bulk_recent,
@@ -16,6 +17,11 @@ router = APIRouter(tags=["Runs & Dashboard"])
 @router.get("/api/runs")
 async def runs_route():
     return await get_all_runs()
+
+
+@router.get("/api/runs/{run_id}")
+async def run_detail_route(run_id: str):
+    return await get_run_detail(run_id)
 
 
 @router.get("/api/summary")

@@ -5,7 +5,6 @@ import { formatDetectionLabel } from "../utils/formatLabels";
 import {
   Upload,
   Camera,
-  Thermometer,
   X,
   CheckCircle2,
   XCircle,
@@ -73,7 +72,6 @@ const uid = () => `f_${++_idCounter}_${Date.now()}`;
 
 export default function AIDetection() {
   const [rgbFiles, setRgbFiles] = useState<LocalFile[]>([]);
-  const [thermalFiles, setThermalFiles] = useState<LocalFile[]>([]);
   const [cards, setCards] = useState<Map<string, CardData>>(new Map());
   const [jobId, setJobId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -90,7 +88,7 @@ export default function AIDetection() {
   const cardsRef = useRef<Map<string, CardData>>(new Map());
   const nameToKeyRef = useRef<Map<string, string>>(new Map());
 
-  const allLocalFiles = useMemo(() => [...rgbFiles, ...thermalFiles], [rgbFiles, thermalFiles]);
+  const allLocalFiles = rgbFiles;
   const totalFiles = allLocalFiles.length;
   const canStart = totalFiles > 0 && !processing;
 
@@ -148,7 +146,7 @@ export default function AIDetection() {
     setBatchProgress(prev => ({ ...prev, total: prev.total + localFiles.length }));
   }, [updateCard]);
 
-  const addFiles = useCallback((files: File[], type: ImageType) => {
+  const addFiles = useCallback((files: File[], type: ImageType = "rgb") => {
     const imageFiles = files.filter(f => f.type.startsWith("image/"));
     if (imageFiles.length === 0) {
       toast.warning("No image files found", 3000);
@@ -160,21 +158,16 @@ export default function AIDetection() {
       preview: URL.createObjectURL(file),
       imageType: type,
     }));
-    if (type === "rgb") {
-      setRgbFiles(prev => [...prev, ...newFiles]);
-    } else {
-      setThermalFiles(prev => [...prev, ...newFiles]);
-    }
-    toast.success(`Added ${imageFiles.length} ${type.toUpperCase()} image(s)`, 2000);
+    setRgbFiles(prev => [...prev, ...newFiles]);
+    toast.success(`Added ${imageFiles.length} RGB image(s)`, 2000);
 
     if (processing && jobIdRef.current) {
       uploadToActiveJob(newFiles);
     }
   }, [processing, uploadToActiveJob]);
 
-  const removeFile = useCallback((id: string, type: ImageType) => {
-    const setter = type === "rgb" ? setRgbFiles : setThermalFiles;
-    setter(prev => {
+  const removeFile = useCallback((id: string) => {
+    setRgbFiles(prev => {
       const file = prev.find(f => f.id === id);
       if (file) URL.revokeObjectURL(file.preview);
       return prev.filter(f => f.id !== id);
@@ -183,9 +176,7 @@ export default function AIDetection() {
 
   const clearAll = useCallback(() => {
     rgbFiles.forEach(f => URL.revokeObjectURL(f.preview));
-    thermalFiles.forEach(f => URL.revokeObjectURL(f.preview));
     setRgbFiles([]);
-    setThermalFiles([]);
     setCards(new Map());
     setJobId(null);
     setBatchProgress({ completed: 0, total: 0 });
@@ -194,7 +185,7 @@ export default function AIDetection() {
     socketRef.current = null;
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     nameToKeyRef.current.clear();
-  }, [rgbFiles, thermalFiles]);
+  }, [rgbFiles]);
 
   const handleDrag = useCallback((e: React.DragEvent, type: ImageType) => {
     e.preventDefault();
@@ -455,8 +446,8 @@ export default function AIDetection() {
             </div>
             <div className="text-2xl font-bold text-white mb-2">Defect Detection Pipeline</div>
             <div className="text-sm text-neutral-300 leading-relaxed">
-              Upload RGB and optional thermal images. The AI system will analyze each image using YOLO + SAHI
-              sliced inference, detect defects, and display results in real time.
+              Upload RGB images for AI-powered defect detection. The system uses YOLO + SAHI
+              sliced inference to detect defects and display results in real time.
             </div>
           </div>
           <div className="flex gap-2">
@@ -531,7 +522,7 @@ export default function AIDetection() {
                           <img src={f.preview} alt={f.file.name} className="w-16 h-16 object-cover rounded-lg border border-neutral-700" />
                           {!processing && (
                             <button
-                              onClick={() => removeFile(f.id, "rgb")}
+                              onClick={() => removeFile(f.id)}
                               className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <X size={10} className="text-white" />
@@ -559,74 +550,12 @@ export default function AIDetection() {
               <div className="mt-2 text-xs text-neutral-400">High-resolution RGB images from drone or camera system</div>
             </div>
 
-            {/* Thermal */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Thermometer size={16} /> Thermal Images
-                </div>
-                <span className="text-xs text-neutral-400 font-medium">Optional</span>
-              </div>
-              <div
-                onDragEnter={e => handleDrag(e, "thermal")}
-                onDragLeave={e => handleDrag(e, "thermal")}
-                onDragOver={e => handleDrag(e, "thermal")}
-                onDrop={e => handleDrop(e, "thermal")}
-                className={`rounded-xl border-2 border-dashed transition-all p-4 ${
-                  dragActive === "thermal"
-                    ? "border-premium-accent bg-premium-accent/10"
-                    : thermalFiles.length > 0
-                    ? "border-premium-warning/50 bg-premium-warning/5"
-                    : "border-neutral-700 bg-premium-card/30 hover:border-premium-accent/50"
-                }`}
-              >
-                {thermalFiles.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-premium-warning">
-                      <CheckCircle2 size={16} />
-                      <span>{thermalFiles.length} thermal image(s) selected</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                      {thermalFiles.map(f => (
-                        <div key={f.id} className="relative group">
-                          <img src={f.preview} alt={f.file.name} className="w-16 h-16 object-cover rounded-lg border border-neutral-700" />
-                          {!processing && (
-                            <button
-                              onClick={() => removeFile(f.id, "thermal")}
-                              className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X size={10} className="text-white" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <input type="file" accept="image/*" multiple onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files), "thermal"); e.target.value = ""; }} className="hidden" id="thermal-add-more" />
-                    <label htmlFor="thermal-add-more" className="inline-block rounded-lg bg-premium-card border border-neutral-700 text-white px-3 py-1.5 text-xs font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                      + Add More
-                    </label>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <Thermometer className="text-3xl text-neutral-500 mx-auto mb-2" />
-                    <div className="text-sm text-neutral-300 mb-2">Drop thermal images here or click to browse</div>
-                    <input type="file" accept="image/*" multiple onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files), "thermal"); e.target.value = ""; }} className="hidden" id="thermal-upload" />
-                    <label htmlFor="thermal-upload" className="inline-block rounded-xl bg-premium-card border border-neutral-700 text-white px-4 py-2 text-sm font-semibold hover:bg-premium-card-hover cursor-pointer transition-colors">
-                      Select Thermal Images
-                    </label>
-                  </div>
-                )}
-              </div>
-              <div className="mt-2 text-xs text-neutral-400">Radiometric thermal images for hotspot detection</div>
-            </div>
-
             {totalFiles > 0 && !processing && (
               <div className="rounded-xl bg-premium-card/50 border border-neutral-700 p-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-white font-medium">{totalFiles} file{totalFiles !== 1 ? "s" : ""} ready</div>
                   <div className="flex gap-3 text-xs text-neutral-400">
                     {rgbFiles.length > 0 && <span className="text-premium-accent">{rgbFiles.length} RGB</span>}
-                    {thermalFiles.length > 0 && <span className="text-premium-warning">{thermalFiles.length} Thermal</span>}
                   </div>
                 </div>
               </div>
@@ -714,7 +643,7 @@ export default function AIDetection() {
             </div>
             <ul className="mt-2 space-y-1.5 text-xs text-neutral-300">
               <li className="flex items-start gap-2"><span className="text-premium-accent mt-0.5">•</span><span>Single click processing with automatic result display</span></li>
-              <li className="flex items-start gap-2"><span className="text-premium-accent mt-0.5">•</span><span>RGB + Thermal images processed through the same pipeline</span></li>
+              <li className="flex items-start gap-2"><span className="text-premium-accent mt-0.5">•</span><span>High-resolution RGB images with SAHI sliced inference</span></li>
               <li className="flex items-start gap-2"><span className="text-premium-accent mt-0.5">•</span><span>100% local processing - perfect for air-gapped environments</span></li>
             </ul>
           </div>
@@ -813,9 +742,7 @@ export default function AIDetection() {
                   )}
 
                   <div className="absolute top-1 left-1">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${card.imageType === "thermal" ? "bg-amber-500/80 text-white" : "bg-cyan-500/80 text-white"}`}>
-                      {card.imageType === "thermal" ? "THERM" : "RGB"}
-                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/80 text-white">RGB</span>
                   </div>
 
                   {card.status === "complete" && (

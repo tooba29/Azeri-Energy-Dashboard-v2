@@ -13,6 +13,7 @@ const Runs = lazy(() => import("./pages/Runs"));
 const RunDetail = lazy(() => import("./pages/RunDetail"));
 const CorridorMap = lazy(() => import("./pages/CorridorMap"));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue"));
+const ThermalAnalysis = lazy(() => import("./pages/ThermalAnalysis"));
 // Import BulkBatches directly to avoid lazy loading issues
 import BulkBatches from "./pages/BulkBatches";
 
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/videos" element={<LazyRoute><Videos /></LazyRoute>} />
         <Route path="/bulk-upload" element={<BulkUpload />} />
         <Route path="/bulk-batches" element={<BulkBatches />} />
+        <Route path="/thermal-analysis" element={<LazyRoute><ThermalAnalysis /></LazyRoute>} />
         <Route path="/map" element={<LazyRoute><CorridorMap /></LazyRoute>} />
         <Route path="/review-queue" element={<LazyRoute><ReviewQueue /></LazyRoute>} />
         <Route path="/settings" element={<Settings />} />

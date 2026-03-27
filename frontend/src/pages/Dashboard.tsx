@@ -141,7 +141,6 @@ export default function Dashboard() {
     video: { active: false, completed: 0, total: 0 },
   });
   const rgbInputRef = useRef<HTMLInputElement>(null);
-  const thermalInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   const refreshRuns = useCallback(() => {
@@ -693,7 +692,6 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Hidden file inputs */}
         <input ref={rgbInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { handleImageUpload(e.target.files, "rgb"); e.target.value = ""; }} />
-        <input ref={thermalInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { handleImageUpload(e.target.files, "thermal"); e.target.value = ""; }} />
         <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden" onChange={(e) => { handleVideoUpload(e.target.files); e.target.value = ""; }} />
 
         {/* RGB Upload */}
@@ -731,41 +729,28 @@ export default function Dashboard() {
           )}
         </motion.button>
 
-        {/* Thermal Upload */}
-        <motion.button
-          type="button"
-          onClick={() => !uploadProgress.thermal.active && thermalInputRef.current?.click()}
-          disabled={uploadProgress.thermal.active}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...transition, delay: reduceMotion ? 0 : 0.05 }}
-          whileHover={reduceMotion || uploadProgress.thermal.active ? undefined : { y: -2, transition: { duration: 0.15 } }}
-          className="rounded-xl border border-orange-500/30 bg-gradient-to-br from-orange-900/20 to-red-900/10 p-5 text-left hover:border-orange-500/60 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-              <Thermometer size={20} className="text-orange-400" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-white">Upload Thermal Images</h4>
-              <p className="text-xs text-neutral-400">Single or bulk upload</p>
-            </div>
-            <Plus size={18} className="text-orange-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-          {uploadProgress.thermal.active ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-xs text-orange-300">
-                <Loader2 size={12} className="animate-spin" />
-                Uploading {uploadProgress.thermal.completed}/{uploadProgress.thermal.total}
+        {/* Thermal Analysis */}
+        <Link to="/thermal-analysis">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...transition, delay: reduceMotion ? 0 : 0.05 }}
+            whileHover={reduceMotion ? undefined : { y: -2, transition: { duration: 0.15 } }}
+            className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 to-teal-900/10 p-5 text-left hover:border-emerald-500/60 transition-all group h-full"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Thermometer size={20} className="text-emerald-400" />
               </div>
-              <div className="h-1.5 bg-neutral-700 rounded-full overflow-hidden">
-                <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${(uploadProgress.thermal.completed / uploadProgress.thermal.total) * 100}%` }} />
+              <div>
+                <h4 className="text-sm font-semibold text-white">Thermal Analysis</h4>
+                <p className="text-xs text-neutral-400">DJI R-JPEG batch processing</p>
               </div>
+              <Plus size={18} className="text-emerald-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          ) : (
-            <p className="text-xs text-neutral-500">FLIR, IR, Thermal — click to browse</p>
-          )}
-        </motion.button>
+            <p className="text-xs text-neutral-500">Upload & analyze thermal images — click to open</p>
+          </motion.div>
+        </Link>
 
         {/* Video Upload */}
         <motion.button
