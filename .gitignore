@@ -23,8 +23,6 @@ frontend/.vite/
 backend/results/
 
 # --- Environment & secrets ---
-.env
-.env.*
 !.env.example
 
 # --- Logs ---
@@ -35,7 +33,6 @@ yarn-error.log*
 
 # --- IDE & OS ---
 .idea/
-.vscode/
 *.swp
 *.swo
 .DS_Store
@@ -60,3 +57,5 @@ backend/models/
 
 # cusrsor default files
 .cursor
+config.bat
+node_modules
